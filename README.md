@@ -31,5 +31,5 @@ The more you specify the longer it takes
 You can specify the start and end date for your search in ``main.py``,
 simply change ``start/end`` and put them in ``pnl.printProfit()``
 
-Duration is dependent on trading Pairs and  duration
+Duration is dependent on trading Pairs and  start/end date
 
