@@ -10,13 +10,11 @@
 
 ``cd Binance_futures_pnl``
 
-edit ``keys.py`` in ``account``
-
-in ``secretKey():`` put your secret API-key
-
-in ``publicKey():`` put your public API-key
+edit ``keys`` text file in ``account``
 
 ``pip install requests``
+
+``pip install termcolor``
 
 
 ###### Output

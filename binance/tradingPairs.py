@@ -2,5 +2,6 @@
 # but that
 # Please check Binance's future website for trading pairs
 
+
 def tradingPairs():
-    return ["BTCUSDT", "ETHUSDT", "BCHUSDT", "XRPUSDT"]
+    return ["ETHUSDT", "LINKUSDT"]

@@ -4,15 +4,10 @@ from urllib.parse import urlencode
 
 from account import keys as k
 
-privateKey = k.secretKey()
+privateKey = k.secret_key()
 
 
 def hashIt(params):
-    par = []
-
-    for i in params:
-        query_string = urlencode(i)
-        par.append(hmac.new(privateKey.encode('utf-8'),
-                            query_string.encode('utf-8'), hashlib.sha256).hexdigest())
-
-    return par
+    query_string = urlencode(params)
+    return hmac.new(privateKey.encode('utf-8'),
+                    query_string.encode('utf-8'), hashlib.sha256).hexdigest()

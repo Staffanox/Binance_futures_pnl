@@ -1,44 +1,70 @@
 import csv
+import os
 from _datetime import datetime
-
-from binance import requests as rq
-from binance import tradingPairs as tp
-
-
-def realizedPNL(pnlType: rq):
-    totalProfit = {i: 0 for i in tp.tradingPairs()}
-
-    req = pnlType
-    for i in range(len(req)):
-        for j in range(len(req[i])):
-            totalProfit[req[i][j]['symbol']] += float(req[i][j]['realizedPnl'])
-
-    saveToCSV(totalProfit)
-    return totalProfit
+from binance import requests as req
+from binance import tradingPairs as t
+from termcolor import colored
 
 
-def printProfit(startDate=datetime.now(), endDate=datetime.now()):
-    sumTotal = 0
-    if startDate != datetime.now() and endDate != datetime.now():
-        print("Profits from", datetime.fromtimestamp(startDate / 1e3), "to", datetime.fromtimestamp(endDate / 1e3))
-        print()
-        totalProfit = realizedPNL(rq.pnlRequestSeveralDays(startDate, endDate))
+def map_pnl(pnl_type: req):
+    total_profit = {i: 0 for i in t.tradingPairs()}
+    request = pnl_type
+
+    for day in request:
+        for trade in day:
+            total_profit[trade['symbol']] += float(trade['realizedPnl'])
+    os.chdir("..")
+    save_to_csv(total_profit)
+    return total_profit
+
+
+def map_time_and_pnl(request: req, time_range):
+    total_profit = {i: 0 for i in time_range}
+    for i in request:
+        if i:
+            total_profit[i['time']] += float(i['realizedPnl'])
+    return total_profit
+
+
+def get_profit_for_date(start_date=None, end_date=None):
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise TypeError("Start can't be after end")
+    if start_date is not None and end_date is not None:
+        print("Profits from", datetime.fromtimestamp(start_date / 1e3), "to", datetime.fromtimestamp(end_date / 1e3))
+        total_profit = map_pnl(req.pnl_custom_range(start_date, end_date))
+        print_profit(total_profit)
+    elif isinstance(start_date, str):
+        request = req.analyse(start_date)
+        total_profit = map_time_and_pnl(request[1], request[0])
+        print_profit(total_profit)
     else:
-        totalProfit = realizedPNL(rq.pnlRequest(rq.hashedParams(rq.params())))
-    for x in totalProfit:
-        if totalProfit[x] < 0:
-            print("Total loss for", x, "is", totalProfit[x], "USDT")
-        else:
-            print("Total profit for", x, "is", totalProfit[x], "USDT")
-        sumTotal += totalProfit[x]
-    print("Total Pnl is ", sumTotal, 'USDT')
+        total_profit = map_pnl(req.pnlRequest(req.hashedParams(req.params())))
+        print_profit(total_profit)
 
 
-def saveToCSV(totalProfit):
+def save_to_csv(total_profit):
     with open('tradeProfit.csv', mode='w') as csv_file:
         fieldnames = ['Asset', 'Profit']
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
         writer.writeheader()
-        for i in totalProfit:
-            writer.writerow({fieldnames[0]: i, fieldnames[1]: totalProfit[i]})
+        for i in total_profit:
+            writer.writerow({fieldnames[0]: i, fieldnames[1]: total_profit[i]})
+
+
+def print_profit(totalProfit: dict):
+    sum_total = 0
+    for x in totalProfit:
+        if totalProfit[x] < 0:
+            print("Total loss for", x, "is", colored(totalProfit[x], 'red'), "USDT")
+        elif totalProfit[x] == 0:
+            print("Total profit for", x, "is", colored(totalProfit[x], 'white'), "USDT")
+        else:
+            print("Total profit for", x, "is", colored(totalProfit[x], 'green'), "USDT")
+        sum_total += totalProfit[x]
+    if sum_total > 0:
+        print("Total Pnl is ", colored(sum_total, 'green'), 'USDT')
+    elif sum_total < 0:
+        print("Total Pnl is ", colored(sum_total, 'red'), 'USDT')
+    else:
+        print("Total Pnl is ", sum_total, 'USDT')

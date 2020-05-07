@@ -1,77 +1,98 @@
 import time
-from datetime import datetime
-
 import requests
-
+import datetime
+from datetime import timedelta
 from account import keys, hashKeys
 from binance import url, tradingPairs as tp
+from calc import handleTime as ht
 
-
-def dates(startyear, startmonth, startday, endyear, endmonth, endday):
-    startdate = int(datetime(startyear, startmonth, startday).timestamp() * 1000)
-    enddate = int(datetime(endyear, endmonth, endday).timestamp() * 1000)
-    if startdate > enddate:
-        raise TypeError("Start can't be after end")
-    else:
-        return startdate, enddate
+formatter = ht.good_formatter
 
 
 def apiHeader():
-    return {"X-MBX-APIKEY": keys.publicKey()}
+    return {"X-MBX-APIKEY": keys.public_key()}
 
 
-def params():
+def params(start_date=None, end_date=None):
     parameters = []
-    timestamp = int(time.time() * 1000)
-    for i in tp.tradingPairs():
-        parameters.append({'symbol': i,
-                           'timestamp': timestamp})
-    return parameters
-
-
-def paramsWithDate(startdate: dates, enddate: dates):
-    parameters = []
-    timestamp = int(time.time() * 1000)
-    for i in tp.tradingPairs():
-        parameters.append({'symbol': i,
-                           'startTime': startdate,
-                           'endTime': enddate,
-                           'timestamp': timestamp})
+    for pair in tp.tradingPairs():
+        timestamp = int(time.time() * 1e3)
+        if start_date is not None and end_date is not None:
+            parameters.append({'symbol': pair,
+                               'startTime': start_date,
+                               'endTime': end_date,
+                               'timestamp': timestamp})
+        else:
+            parameters.append({'symbol': pair,
+                               'timestamp': timestamp})
     return parameters
 
 
 def hashedParams(parameters: list):
-    for i in range(len(parameters)):
-        parameters[i]['signature'] = hashKeys.hashIt(parameters)[i]
+    for i in parameters:
+        i['signature'] = hashKeys.hashIt(i)
     return parameters
 
 
-def pnlRequest(hashedPar: list):
+def pnlRequest(hashed_par: list):
     request = []
-    for i in hashedPar:
+    for i in hashed_par:
         request.append(requests.get(url=url.joinedURL(url.futureApi(), url.tradeHistoryPath()), params=i,
                                     headers=apiHeader()).json())
+
+    if 'msg' in request[0]:
+        raise TypeError(request[0]['msg'])
+    else:
+        return request
+
+
+def pnl_custom_range(start: int, end: int):
+    start_date, real_end_date = start, end
+    request = []
+    while start_date <= real_end_date:
+        req = pnlRequest(hashedParams(params(start_date, int(start_date + timedelta(days=1).total_seconds() * 1e3))))
+        for trade in req:
+            if trade:
+                request.append(trade)
+        start_date += int(timedelta(days=1).total_seconds() * 1e3)
+
+    # flattens the list because a dict burrowed in three sublists is cancer
+    #flat_list = [item for sublist in request for item in sublist]
+    #flat_list = [item for sublist in flat_list for item in sublist]
 
     return request
 
 
-def pnlRequestSeveralDays(start: dates, end: dates):
-    realstartdate, realenddate = start, end
-    startdate = realstartdate
-    enddate = startdate + 86400000
+def analyse(date_range: str):
+    time_range = []
     request = []
-    while startdate < realenddate:
-        # todo could be recursive and better
-
-        rq = pnlRequest(hashedParams(paramsWithDate(startdate, enddate)))
-        rqs = [x for x in rq if x]
-        if rqs:
-            request.append(rqs)
-        startdate += 86400000
-        enddate = startdate + 86400000
-
-    # flattens the list because a dict burrowed in three sublists is cancer
-
-    flat_list = [item for sublist in request for item in sublist]
-
-    return flat_list
+    # todo pattern matching
+    # todo function body : find whats same, abstract that into function and give variable parameters into function parameters
+    if date_range == 'week':
+        start, end = ht.range_of_week()
+        start = datetime.datetime.strptime(start, formatter)
+        end = datetime.datetime.strptime(end, formatter)
+        while start < end:
+            time_range.append(start)
+            request.append(
+                pnl_custom_range(int(datetime.datetime.timestamp(start)), int(datetime.datetime.timestamp(end))))
+            start += datetime.timedelta(days=1)
+    elif date_range == 'month':
+        start, end = ht.range_of_month()
+        start = datetime.datetime.strptime(start, formatter)
+        end = datetime.datetime.strptime(end, formatter)
+        while start < end:
+            time_range.append(start)
+            request.append(
+                pnl_custom_range(int(datetime.datetime.timestamp(start)), int(datetime.datetime.timestamp(end))))
+            start += datetime.timedelta(days=1)
+    elif date_range == 'year':
+        start, end = ht.range_of_year()
+        start = datetime.datetime.strptime(start, formatter)
+        end = datetime.datetime.strptime(end, formatter)
+        while start < end:
+            time_range.append(start.strftime(formatter))
+            request.append(
+                pnl_custom_range(int(datetime.datetime.timestamp(start)), int(datetime.datetime.timestamp(end))))
+            start += datetime.timedelta(days=1)
+    return time_range, request
