@@ -10,3 +10,8 @@ def plot_bar(dates, values):
     plt.ylabel("Profit")
     plt.grid()
     plt.show()
+
+
+def decide_plot(plot_type: str, dates, values):
+    if plot_type == "bar":
+        plot_bar(dates, values)
