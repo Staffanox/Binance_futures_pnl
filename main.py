@@ -1,11 +1,13 @@
+import datetime
+
+from calc import handle_time as ht
 from calc import pnl
-from calc import handleTime as ht
 
 # default is profits from start of 2020 (current year) to now
-# date is given in year month day order
+# date is given in year, month, day order
 
-# start, end =
-start, end = ht.dates(2020, 1, 1, 2020, 12, 31)
+current_date = datetime.datetime.now()
+start, end = ht.dates(current_date.year, 1, 1, current_date.year, 1, current_date.day)
 
 # Put start and end in here to specify the range of your calculated Profits, the duration depends on the size of
 # duration and trades during specified range
@@ -13,4 +15,7 @@ start, end = ht.dates(2020, 1, 1, 2020, 12, 31)
 # With four trading pairs that's 1460 requests to the api each differing in response time due to varying trade size
 
 
-pnl.get_profit_for_date()
+profit = pnl.get_profit_for_date('week')
+
+pnl.print_profit(profit)
+#visuals.plot_bar(profit.keys(), profit.values())

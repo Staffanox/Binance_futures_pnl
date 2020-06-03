@@ -4,4 +4,4 @@
 
 
 def tradingPairs():
-    return ["ETHUSDT", "LINKUSDT"]
+    return ["BTCUSDT", "ETHUSDT", "LINKUSDT"]
